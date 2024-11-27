@@ -3,13 +3,19 @@
 #include <windows.h>
 # include <string.h>
 # include <conio.h>
+#include <stdbool.h>
 
 
 //*************************VARIÁVEIS GLOBAIS****************************************************** */
-    #define N 20                   
+    #define N 20    
+    int quant=0;               
     char USUARIO[N] = {"admin"};   //VARIÁVEIS PARA A FUNÇÃO "acesso_padrao"
     char SENHA[N] = {"admin"};
+    
     const char *nomeArquivo = "produtos.bin";
+    bool p_acesso = true;
+    int quantusuarios = 0;
+    int MAX_USUARIOS = 3;
  //*********************************STRUCT PARA CADASTO DE PRODUTOS********************************************************* */
 
 struct Prod {
@@ -19,6 +25,14 @@ struct Prod {
 };
 
 typedef struct Prod prod;
+
+/********************************************STRUCT PARA USUÁRIOS************************************************************************ */
+ struct Usuarios {
+    char usuario_[50]; // Nome do usuário
+    char senha_[50];   // Senha do usuário
+};
+typedef struct Usuarios usuarios;
+
 
    
   /************************DEclaração das Funções*********************************/
@@ -31,6 +45,7 @@ typedef struct Prod prod;
     void acesso_padrao();
     void logo();
     void cadastro_fornecedor();
+    void login();
 
 /******************FUNÇÃO PRINCIPAL***************************/
 
@@ -40,29 +55,33 @@ typedef struct Prod prod;
   SetConsoleOutputCP(CP_UTF8); // Habilita o teclado para português
   
    logo();
-   acesso_padrao();
 
- 
+   FILE *arquivo = fopen("usuarios.bin", "rb");
+   fread(&p_acesso, sizeof(bool), 1, arquivo);
+   fclose(arquivo);
+   if(p_acesso == false || arquivo == NULL){
+   acesso_padrao();
+   }
+    else
+    {
+        login();
+    }
+    
         
    }
 
    void acesso_padrao()
    
-   
-   
    {
          
+system("cls");
 
-        system("cls");
+ char usuario[10], senha[10], ch;
+ int i = 0;
 
-       
-
-        char usuario[10], senha[10], ch;
-        int i = 0;
-
-    printf("Insira o nome de usuário: ");
-    scanf("%s",usuario);
-    fflush;
+     printf("Insira o nome de usuário: ");
+     scanf("%s",usuario);
+     fflush;
    
 
     printf("Insira a senha: ");
@@ -73,7 +92,7 @@ typedef struct Prod prod;
         printf("*");
     }
     senha[i] = '\0';  // Finalizando a string da senha
-    fflush;
+     fflush;
     
 
     // Validando o login
@@ -112,7 +131,7 @@ typedef struct Prod prod;
              }
 
  void menu_principal(){
-    fflush;
+
     system("cls");
     int op;
     do
@@ -121,7 +140,7 @@ typedef struct Prod prod;
       printf(" 1. Caixa\n 2. Cadastro de produtos\n 3. Estoque e Fornecedores\n 4. Cadastro de usuários\n 0. Sair");
       printf("\nInsira uma opção: ");
       scanf("%d",&op);
-      fflush;
+      while (getchar() != '\n');
 
      switch (op) {
             case 1:
@@ -186,10 +205,12 @@ void caixa(const char *nomeArquivo){
     int codigo, encontrado;
     char continuar;
 
+    system("cls");
     printf("\n--- Módulo de Caixa ---\n");
     do {
         printf("Digite o código do produto (ou 0 para encerrar): ");
         scanf("%d", &codigo);
+        while (getchar() != '\n');
 
         if (codigo == 0) {
             break;
@@ -212,20 +233,24 @@ void caixa(const char *nomeArquivo){
 
         printf("Deseja continuar? (s/n): ");
         scanf(" %c", &continuar);
+        while (getchar() != '\n');
+
 
     } while (continuar == 's' || continuar == 'S');
 
-    // Exibe o total final
-    printf("\n--- Finalização da Compra ---\n");
-    printf("Total a pagar: %.2f\n", total);
-
-    // Libera a memória alocada
-    free(produtos);
-    menu_principal();
-
-
-  
     
+    system("cls");
+    printf("\n--- Finalização da Compra ---\n");
+    printf("Total a pagar: R$ %.2f\n", total);
+    free(produtos);
+    
+    int c;
+    do {
+        c = getchar();
+    } while (c != '\n'); 
+    
+    menu_principal();
+     
 }
 
 void cadastroDeProdutos(const char *nomeArquivo){
@@ -233,6 +258,7 @@ void cadastroDeProdutos(const char *nomeArquivo){
     int n;
     printf("Quantos produtos deseja cadastrar? ");
     scanf("%d", &n);
+    while (getchar() != '\n'); 
 
     // Aloca memória para os produtos
     prod *produtos = (prod *)malloc(n * sizeof(prod));
@@ -245,13 +271,17 @@ void cadastroDeProdutos(const char *nomeArquivo){
     for (int i = 0; i < n; i++) {
         printf("\nProduto %d:\n", i + 1);
         printf("Código: ");
-        scanf("%d", &produtos[i].cod);
+        scanf(" %d", &produtos[i].cod);
+        while (getchar() != '\n'); 
+
 
         printf("Nome: ");
         scanf(" %19[^\n]", produtos[i].nome);
+        while (getchar() != '\n'); 
 
         printf("Preço: ");
-        scanf("%f", &produtos[i].preco);
+        scanf(" %f", &produtos[i].preco);
+        while (getchar() != '\n'); 
     }
 
     // Salva os produtos no arquivo binário
@@ -264,13 +294,11 @@ void cadastroDeProdutos(const char *nomeArquivo){
 
     fwrite(produtos, sizeof(prod), n, arquivo);
     fclose(arquivo);
-
+    system("cls");
     printf("\nProdutos cadastrados e salvos no arquivo com sucesso.\n");
+    Sleep(1500);
     free(produtos);
     menu_principal();
-
-
-
 
     }
 
@@ -314,18 +342,160 @@ void estoque(){
 
 
 void cadastro_usuario(){
+   
+    FILE *arquivo;
 
-    printf("Módulo cadastro de usuáruos");
+    // Abre o arquivo binário para leitura e escrita (modo "r+b" para binário)
+    arquivo = fopen("usuarios.bin", "r+b");
+
+    // Se o arquivo não existir (primeira execução), cria o arquivo binário
+    if (arquivo == NULL) {
+        arquivo = fopen("usuarios.bin", "wb");
+        if (arquivo == NULL) {
+            printf("Erro ao criar arquivo de usuarios.\n");
+            return;
+        }
+        // Inicializa as variáveis e grava no arquivo
+        p_acesso = false;
+        quant = 0;
+        fwrite(&p_acesso, sizeof(bool), 1, arquivo); // Salva p_acesso
+        fwrite(&quant, sizeof(int), 1, arquivo);     // Salva quant
+    } else {
+        // Se o arquivo existir, lê os dados de p_acesso e quant
+        fread(&p_acesso, sizeof(bool), 1, arquivo); // Recupera p_acesso
+        fread(&quant, sizeof(int), 1, arquivo);    // Recupera quant
+    }
+
+    // Atualiza p_acesso para indicar que o usuário acessou a função
+    p_acesso = true;
+
+    // Verifica se o limite de usuários foi alcançado
+    if (quant >= MAX_USUARIOS) {
+        system("cls");
+        printf("Limite de usuarios alcançado.\n");
+        Sleep(1500);
+        fclose(arquivo);
+        menu_principal();
+    }
+
+    // Array para armazenar os dados dos usuários
+    usuarios usuario_[MAX_USUARIOS];
+
+    // Lê os usuários existentes no arquivo
+    fseek(arquivo, sizeof(bool) + sizeof(int), SEEK_SET); // Move o ponteiro após p_acesso e quant
+    fread(usuario_, sizeof(usuarios), quant, arquivo);
+
+    // Solicita o nome de usuário
+    char nome_usuario[50];
+    printf("Insira o nome de usuário (máximo 49 caracteres): ");
+    scanf("%49s", nome_usuario);
+
+    // Verifica se o nome de usuário já existe
+    for (int i = 0; i < quant; i++) {
+        if (strcmp(usuario_[i].usuario_, nome_usuario) == 0) {
+            // Se o nome de usuário já existir, exibe uma mensagem de erro
+            system("cls");
+            printf("Nome de usuário já existente. Tente novamente.\n");
+            Sleep(1500);
+            fclose(arquivo);
+            menu_principal();  // Ou repete o cadastro dependendo da sua lógica
+            return;
+        }
+    }
+
+    // Solicita a senha do novo usuário
+    printf("Insira a senha do usuário (máximo 49 caracteres): ");
+    scanf("%49s", usuario_[quant].senha_);
+
+    // Atribui o nome de usuário ao novo usuário
+    strcpy(usuario_[quant].usuario_, nome_usuario);
+
+    // Incrementa o contador de usuários
+    quant++;
+
+    // Volta o ponteiro do arquivo para o início e grava os dados atualizados
+    fseek(arquivo, 0, SEEK_SET);
+    fwrite(&p_acesso, sizeof(bool), 1, arquivo); // Atualiza p_acesso no arquivo
+    fwrite(&quant, sizeof(int), 1, arquivo);    // Atualiza quant no arquivo
+    fwrite(usuario_, sizeof(usuarios), quant, arquivo); // Grava os usuários no arquivo
+
+    // Limpa a tela e exibe uma mensagem de sucesso
+    system("cls");
+    printf("Usuário cadastrado com sucesso!\n");
+    Sleep(1500);
+
+    fclose(arquivo); // Fecha o arquivo
+    menu_principal();
+
+
+
+
+
 }
 
+void login(){
+
+    system("cls");
+
+    FILE *arquivo;
+
+    // Abre o arquivo binário para leitura (modo "rb" para binário)
+    arquivo = fopen("usuarios.bin", "rb");
+   
+    // Lê os dados de p_acesso e quant (quantidade de usuários cadastrados)
+    fread(&p_acesso, sizeof(bool), 1, arquivo); // Recupera p_acesso
+    fread(&quant, sizeof(int), 1, arquivo);     // Recupera quant
+
+    // Array para armazenar os dados dos usuários
+    usuarios usuario_[MAX_USUARIOS];
+
+    // Lê os usuários existentes no arquivo
+    fseek(arquivo, sizeof(bool) + sizeof(int), SEEK_SET); // Move o ponteiro após p_acesso e quant
+    fread(usuario_, sizeof(usuarios), quant, arquivo);
+
+    // Variáveis para o login
+    char nome_usuario[50], senha_usuario[50];
+    bool usuario_encontrado = false;
+
+    // Solicita o nome de usuário e a senha
+    printf("Insira o nome de usuário: ");
+    scanf("%49s", nome_usuario);
+    printf("Insira a senha: ");
+    scanf("%49s", senha_usuario);
+
+    // Verifica se o nome de usuário e a senha são válidos
+    for (int i = 0; i < quant; i++) {
+        if (strcmp(usuario_[i].usuario_, nome_usuario) == 0) {
+            // Usuário encontrado, agora verifica a senha
+            if (strcmp(usuario_[i].senha_, senha_usuario) == 0) {
+                // Se a senha também for correta                
+                fclose(arquivo);
+                menu_principal();
+               // Retorna true se o acesso for autorizado
+            } else {
+                // Senha incorreta
+                printf("Senha incorreta!\n");
+                Sleep(1500);
+                fclose(arquivo);
+                login();
+                
+            }
+        }
+    }
+
+    // Se o usuário não for encontrado
+    if (!usuario_encontrado) {
+        system("cls");
+        printf("Usuário não encontrado.\n");
+        Sleep(1500);
+        fclose(arquivo);
+        
+
+    login();
 
 
 
+    
+}
 
-
-
-
-
-
-
-
+}
