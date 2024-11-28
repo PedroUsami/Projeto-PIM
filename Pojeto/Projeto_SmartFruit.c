@@ -12,7 +12,7 @@
     char USUARIO[N] = {"admin"};   //VARIÁVEIS PARA A FUNÇÃO "acesso_padrao"
     char SENHA[N] = {"admin"};
     
-    const char *nomeArquivo = "produtos.bin";
+    const char *nomeArquivo = "registros.bin";
     bool p_acesso = true;
     int quantusuarios = 0;
     int MAX_USUARIOS = 3;
@@ -22,30 +22,39 @@ struct Prod {
     int cod;
     char nome[20];
     float preco;
+    int quantidade;
+    char fornecedor[50]; 
+    
 };
 
 typedef struct Prod prod;
 
+//********************************************STRUCT PARA FORNECEDORES************************************************************* */
+    typedef struct {
+    char nome[50];   // Nome do fornecedor
+    char cnpj[15];   // CNPJ do fornecedor
+} fornecedor;
 /********************************************STRUCT PARA USUÁRIOS************************************************************************ */
  struct Usuarios {
     char usuario_[50]; // Nome do usuário
     char senha_[50];   // Senha do usuário
 };
 typedef struct Usuarios usuarios;
-
-
-   
-  /************************DEclaração das Funções*********************************/
+ 
+  /************************Protótipos das Funções*********************************/
    
     void menu_principal();
     void caixa(const char *nomeArquivo);
     void cadastroDeProdutos(const char *nomeArquivo);
+    void atualizarEstoque(const char *nomeArquivo);
     void estoque();
     void cadastro_usuario();
     void acesso_padrao();
     void logo();
     void cadastro_fornecedor();
     void login();
+    void cadastroDeFornecedores(const char *nomeArquivo);
+    void busca_produtos(const char *nomeArquivo);
 
 /******************FUNÇÃO PRINCIPAL***************************/
 
@@ -165,10 +174,6 @@ system("cls");
             }
         
     } while (op <0 || op > 5);
-    
-
-
-
 
  }  
 
@@ -255,25 +260,22 @@ void caixa(const char *nomeArquivo){
 
 void cadastroDeProdutos(const char *nomeArquivo){
 
-    int n;
+     int n;
     printf("Quantos produtos deseja cadastrar? ");
     scanf("%d", &n);
     while (getchar() != '\n'); 
 
-    // Aloca memória para os produtos
     prod *produtos = (prod *)malloc(n * sizeof(prod));
     if (produtos == NULL) {
         printf("Erro ao alocar memória.\n");
         exit(1);
     }
 
-    // Cadastro dos produtos
     for (int i = 0; i < n; i++) {
         printf("\nProduto %d:\n", i + 1);
         printf("Código: ");
         scanf(" %d", &produtos[i].cod);
         while (getchar() != '\n'); 
-
 
         printf("Nome: ");
         scanf(" %19[^\n]", produtos[i].nome);
@@ -282,9 +284,16 @@ void cadastroDeProdutos(const char *nomeArquivo){
         printf("Preço: ");
         scanf(" %f", &produtos[i].preco);
         while (getchar() != '\n'); 
+
+        printf("Quantidade no estoque: ");
+        scanf(" %d", &produtos[i].quantidade);
+        while (getchar() != '\n'); 
+
+        printf("Fornecedor (nome): ");
+        scanf(" %49[^\n]", produtos[i].fornecedor);
+        while (getchar() != '\n'); 
     }
 
-    // Salva os produtos no arquivo binário
     FILE *arquivo = fopen(nomeArquivo, "ab");
     if (arquivo == NULL) {
         printf("Erro ao abrir o arquivo.\n");
@@ -292,16 +301,74 @@ void cadastroDeProdutos(const char *nomeArquivo){
         exit(1);
     }
 
-    fwrite(produtos, sizeof(prod), n, arquivo);
+    // Escreve os produtos no arquivo
+    for (int i = 0; i < n; i++) {
+        char tipo = 'P'; // Tipo para indicar que é um produto
+        fwrite(&tipo, sizeof(char), 1, arquivo);
+        fwrite(&produtos[i], sizeof(prod), 1, arquivo);
+    }
+
     fclose(arquivo);
     system("cls");
     printf("\nProdutos cadastrados e salvos no arquivo com sucesso.\n");
     Sleep(1500);
     free(produtos);
-    menu_principal();
+}
 
+
+void atualizarEstoque(const char *nomeArquivo){
+
+ int codigo, novaQuantidade;
+    int encontrado = 0;
+
+    printf("Digite o código do produto que deseja atualizar: ");
+    scanf("%d", &codigo);
+
+    FILE *arquivo = fopen(nomeArquivo, "rb+");
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo.\n");
+        return;
     }
 
+    prod produto;
+    while (fread(&produto, sizeof(prod), 1, arquivo)) {
+        if (produto.cod == codigo) {
+            encontrado = 1;
+            printf("Produto encontrado: %s\n", produto.nome);
+            printf("Quantidade atual: %d\n", produto.quantidade);
+            printf("Digite a nova quantidade: ");
+            scanf("%d", &novaQuantidade);
+
+            produto.quantidade = novaQuantidade;
+
+            // Move o ponteiro do arquivo para reescrever o registro
+            fseek(arquivo, -sizeof(prod), SEEK_CUR);
+            fwrite(&produto, sizeof(prod), 1, arquivo);
+            system("cls");
+            printf("\nQuantidade atualizada com sucesso!\n");
+            Sleep(1500);
+            break;
+            
+        }
+    }
+
+    if (!encontrado) {
+        system("cls");
+        printf("\nProduto com o código %d não encontrado.\n", codigo);
+        Sleep(1500);
+    }
+
+    fclose(arquivo);
+
+
+
+
+
+
+
+
+
+}
 
 void estoque(){
     
@@ -309,21 +376,25 @@ void estoque(){
     do
     {
         system("cls");
-        printf("1.Cadastrar Fornecedor\n2. Consultar Estoque\n3. Voltar ao Menu Principal\nInsira uma opção: ");
+        printf("1.Cadastrar Fornecedor\n2. Consultar Estoque\n3. Voltar ao Menu Principal\n4. Atualizar estoque\nInsira uma opção: ");
         scanf("%d",&op2);
         switch (op2)
         {
         case 1:
-            printf("Teste");
+            cadastroDeFornecedores(nomeArquivo);
             break;
 
         case 2:
-            printf("Teste");
+             busca_produtos(nomeArquivo);
             break;
 
         case 3:
             system("cls");
             menu_principal();
+            break;
+        case 4:
+            system("cls");
+            atualizarEstoque(nomeArquivo);
             break;
         
         default:
@@ -339,7 +410,6 @@ void estoque(){
     
 
 }
-
 
 void cadastro_usuario(){
    
@@ -435,6 +505,7 @@ void cadastro_usuario(){
 
 void login(){
 
+
     system("cls");
 
     FILE *arquivo;
@@ -499,3 +570,111 @@ void login(){
 }
 
 }
+
+void cadastroDeFornecedores(const char *nomeArquivo){
+
+ int n;
+    printf("Quantos fornecedores deseja cadastrar? ");
+    scanf("%d", &n);
+    while (getchar() != '\n');  // Limpa o buffer de entrada
+
+    fornecedor *fornecedores = (fornecedor *)malloc(n * sizeof(fornecedor));
+    if (fornecedores == NULL) {
+        printf("Erro ao alocar memória.\n");
+        exit(1);
+    }
+
+    // Cadastro dos fornecedores
+    for (int i = 0; i < n; i++) {
+        printf("\nFornecedor %d:\n", i + 1);
+        printf("Nome: ");
+        scanf(" %49[^\n]", fornecedores[i].nome);
+        while (getchar() != '\n');  // Limpa o buffer de entrada
+
+        printf("CNPJ: ");
+        scanf(" %19[^\n]", fornecedores[i].cnpj);
+        while (getchar() != '\n');  // Limpa o buffer de entrada
+    }
+
+    // Salvar os fornecedores no arquivo binário
+    FILE *arquivo = fopen(nomeArquivo, "ab");
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo.\n");
+        free(fornecedores);
+        exit(1);
+    }
+
+    for (int i = 0; i < n; i++) {
+        fwrite("F", sizeof(char), 1, arquivo);  // Identificador de fornecedor
+        fwrite(&fornecedores[i], sizeof(fornecedor), 1, arquivo);
+    }
+
+    fclose(arquivo);
+    printf("\nFornecedores cadastrados e salvos no arquivo com sucesso.\n");
+    free(fornecedores);
+}
+
+void busca_produtos(const char *nomeArquivo){
+
+     FILE *arquivo = fopen(nomeArquivo, "rb");
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo.\n");
+        exit(1);
+    }
+
+    prod p;
+    fornecedor f;
+    char tipo;
+
+    // Exibir cabeçalho da tabela
+    printf("\n%-10s %-20s %-10s %-15s %-20s %-25s\n", "Código", "Nome", "Preço", "Quantidade", "CNPJ Fornecedor", "Fornecedor");
+    printf("-------------------------------------------------------------------------------\n");
+
+    // Exibir os produtos uma vez
+    while (fread(&tipo, sizeof(char), 1, arquivo)) {
+        if (tipo == 'P') { // Produto
+            fread(&p, sizeof(prod), 1, arquivo);
+
+            // Procurar o fornecedor correspondente dentro do arquivo
+            rewind(arquivo); // Reposiciona o ponteiro do arquivo para o início
+            char cnpjFornecedor[30] = "Fornecedor nao encontrado"; // Default
+            while (fread(&tipo, sizeof(char), 1, arquivo)) {
+                if (tipo == 'F') { // Fornecedor
+                    fread(&f, sizeof(fornecedor), 1, arquivo);
+                    if (strcmp(p.fornecedor, f.nome) == 0) {
+                        strcpy(cnpjFornecedor, f.cnpj); // Atribui o CNPJ
+                        break;
+                    }
+                }
+            }
+
+            // Exibir dados do produto com o CNPJ do fornecedor
+            printf("%-10d %-20s %-10.2f %-15d %-20s %-25s\n", p.cod, p.nome, p.preco, p.quantidade, cnpjFornecedor, p.fornecedor);
+            system("pause");
+        }
+    }
+
+    fclose(arquivo);
+
+    
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
